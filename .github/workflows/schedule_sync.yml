@@ -2,7 +2,7 @@ name: Run Tado-Octopus Script
 
 on:
   schedule:
-    - cron: '*/15 * * * *'
+    - cron: '0 0 * * *'
 
 jobs:
   run_script:
