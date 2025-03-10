@@ -1,4 +1,4 @@
-# Octopus Energy & Tado Energy IQ Sync Tool
+# Octopus Energy & Tado Energy IQ Sync Tool for jb
 
 This repository contains a script to automatically sync your Octopus Energy
 smart meter readings with Tado's Energy IQ feature. The workflow provided allows
