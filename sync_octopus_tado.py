@@ -95,7 +95,8 @@ class TadoAuth:
             
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Accept": "application/json"
         }
         
         # First, get the user's home ID
@@ -126,6 +127,9 @@ class TadoAuth:
         )
         
         if reading_response.status_code != 200:
+            print(f"Failed to send reading. Status code: {reading_response.status_code}")
+            print(f"Response headers: {reading_response.headers}")
+            print(f"Request headers: {headers}")
             raise Exception(f"Failed to send reading: {reading_response.text}")
             
         return reading_response.json()
