@@ -40,8 +40,8 @@ def send_reading_to_tado(username, password, client_secret, reading):
     """
     print(f"Attempting to authenticate with Tado using username: {username}")
     try:
-        # Initialize Tado with client_secret
-        tado = Tado(username, password, client_secret=client_secret)
+        # Initialize Tado without client_secret
+        tado = Tado(username, password)
         print("Successfully created Tado instance")
         
         # Verify authentication by getting user info
