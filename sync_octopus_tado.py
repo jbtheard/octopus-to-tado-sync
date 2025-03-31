@@ -1,8 +1,134 @@
 import argparse
+import json
+import time
 import requests
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
-from PyTado.interface import Tado
+
+TADO_CLIENT_ID = "1bb50063-6b0c-4d11-bd99-387f4a91cc46"
+TADO_AUTH_URL = "https://login.tado.com/oauth2"
+
+
+class TadoAuth:
+    def __init__(self):
+        self.access_token = None
+        self.refresh_token = None
+
+    def device_auth_flow(self):
+        """Initiates the device code flow authentication."""
+        print("Initiating Tado device code flow authentication...")
+        
+        # Step 1: Request device code
+        response = requests.post(
+            f"{TADO_AUTH_URL}/device_authorize",
+            params={
+                "client_id": TADO_CLIENT_ID,
+                "scope": "offline_access",
+            }
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Failed to get device code: {response.text}")
+        
+        auth_data = response.json()
+        verification_uri = auth_data['verification_uri_complete']
+        device_code = auth_data['device_code']
+        interval = auth_data['interval']
+        
+        print(f"\nPlease visit this URL to authenticate: {verification_uri}")
+        print("Waiting for authentication...")
+        
+        # Step 2: Poll for token
+        while True:
+            time.sleep(interval)
+            
+            token_response = requests.post(
+                f"{TADO_AUTH_URL}/token",
+                params={
+                    "client_id": TADO_CLIENT_ID,
+                    "device_code": device_code,
+                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                }
+            )
+            
+            if token_response.status_code == 200:
+                token_data = token_response.json()
+                self.access_token = token_data['access_token']
+                self.refresh_token = token_data['refresh_token']
+                print("Successfully authenticated with Tado!")
+                return
+            elif token_response.status_code == 400:
+                error_data = token_response.json()
+                if error_data.get('error') == 'authorization_pending':
+                    print("Waiting for authorization...")
+                    continue
+                else:
+                    raise Exception(f"Authentication failed: {token_response.text}")
+            else:
+                raise Exception(f"Unexpected response: {token_response.text}")
+
+    def refresh_access_token(self):
+        """Refreshes the access token using the refresh token."""
+        if not self.refresh_token:
+            raise Exception("No refresh token available")
+            
+        response = requests.post(
+            f"{TADO_AUTH_URL}/token",
+            params={
+                "client_id": TADO_CLIENT_ID,
+                "grant_type": "refresh_token",
+                "refresh_token": self.refresh_token,
+            }
+        )
+        
+        if response.status_code != 200:
+            raise Exception(f"Failed to refresh token: {response.text}")
+            
+        token_data = response.json()
+        self.access_token = token_data['access_token']
+        self.refresh_token = token_data['refresh_token']  # Tado uses refresh token rotation
+
+    def send_reading_to_tado(self, consumption):
+        """Sends the total consumption reading to Tado using its Energy IQ feature."""
+        if not self.access_token:
+            self.device_auth_flow()
+            
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json"
+        }
+        
+        # First, get the user's home ID
+        me_response = requests.get(
+            "https://my.tado.com/api/v2/me",
+            headers=headers
+        )
+        
+        if me_response.status_code == 401:
+            # Token expired, refresh and retry
+            self.refresh_access_token()
+            headers["Authorization"] = f"Bearer {self.access_token}"
+            me_response = requests.get(
+                "https://my.tado.com/api/v2/me",
+                headers=headers
+            )
+            
+        if me_response.status_code != 200:
+            raise Exception(f"Failed to get user info: {me_response.text}")
+            
+        home_id = me_response.json()['homes'][0]['id']
+        
+        # Send the meter reading
+        reading_response = requests.post(
+            f"https://energy-insights.tado.com/api/homes/{home_id}/readings",
+            headers=headers,
+            json={"reading": int(consumption)}
+        )
+        
+        if reading_response.status_code != 200:
+            raise Exception(f"Failed to send reading: {reading_response.text}")
+            
+        return reading_response.json()
 
 
 def get_meter_reading_total_consumption(api_key, mprn, gas_serial_number):
@@ -34,35 +160,6 @@ def get_meter_reading_total_consumption(api_key, mprn, gas_serial_number):
     return total_consumption
 
 
-def send_reading_to_tado(username, password, client_secret, reading):
-    """
-    Sends the total consumption reading to Tado using its Energy IQ feature.
-    """
-    print(f"Attempting to authenticate with Tado using username: {username}")
-    try:
-        # Initialize Tado without client_secret
-        tado = Tado(username, password)
-        print("Successfully created Tado instance")
-        
-        # Verify authentication by getting user info
-        me = tado.get_me()
-        print(f"Successfully authenticated with Tado. User info: {me}")
-        
-        # Send the reading
-        result = tado.set_eiq_meter_readings(reading=int(reading))
-        print(f"Tado API response: {result}")
-        return result
-    except Exception as e:
-        print(f"Error in Tado operation: {str(e)}")
-        print(f"Error type: {type(e)}")
-        if hasattr(e, 'response') and e.response is not None:
-            print(f"Response status code: {e.response.status_code}")
-            print(f"Response text: {e.response.text}")
-        else:
-            print("No response object available")
-        raise
-
-
 def parse_args():
     """
     Parses command-line arguments for Tado and Octopus API credentials and meter details.
@@ -70,11 +167,6 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Tado and Octopus API Interaction Script"
     )
-
-    # Tado API arguments
-    parser.add_argument("--tado-email", required=True, help="Tado account email")
-    parser.add_argument("--tado-password", required=True, help="Tado account password")
-    parser.add_argument("--tado-client-secret", required=True, help="Tado client secret")
 
     # Octopus API arguments
     parser.add_argument(
@@ -98,5 +190,6 @@ if __name__ == "__main__":
         args.octopus_api_key, args.mprn, args.gas_serial_number
     )
 
-    # Send the total consumption to Tado
-    send_reading_to_tado(args.tado_email, args.tado_password, args.tado_client_secret, consumption)
+    # Initialize Tado authentication and send the reading
+    tado = TadoAuth()
+    tado.send_reading_to_tado(consumption)
