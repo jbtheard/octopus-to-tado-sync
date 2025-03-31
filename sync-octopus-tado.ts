@@ -7,13 +7,16 @@ dotenv.config();
 
 const TADO_CLIENT_ID = 'tado-web-app';
 const TADO_CLIENT_SECRET = 'wZaRN7rpjn3FoNyF5IFuxg9uMzYJcvOoQ8QWiIqS3hfk6gLhVlG57j5YNoZL2Rtc';
-const TADO_AUTH_URL = 'https://auth.tado.com/oauth';
+const TADO_AUTH_URL = 'https://login.tado.com/oauth2';
 const TADO_API_URL = 'https://my.tado.com/api/v2';
 
 interface TokenData {
   access_token: string;
   refresh_token: string;
   expires_in: number;
+  scope: string;
+  token_type: string;
+  userId: string;
 }
 
 interface DeviceCodeData {
@@ -22,6 +25,7 @@ interface DeviceCodeData {
   verification_uri: string;
   verification_uri_complete: string;
   interval: number;
+  expires_in: number;
 }
 
 interface Zone {
@@ -56,9 +60,9 @@ class TadoAuth {
 
     try {
       // Step 1: Request device code
-      const deviceResponse = await axios.post<DeviceCodeData>(`${TADO_AUTH_URL}/device`, {
+      const deviceResponse = await axios.post<DeviceCodeData>(`${TADO_AUTH_URL}/device_authorization`, {
         client_id: TADO_CLIENT_ID,
-        scope: 'home.user'
+        scope: 'home.user offline_access'
       });
 
       const deviceData = deviceResponse.data;
@@ -73,7 +77,7 @@ class TadoAuth {
           const tokenResponse = await axios.post<TokenData>(`${TADO_AUTH_URL}/token`, {
             client_id: TADO_CLIENT_ID,
             client_secret: TADO_CLIENT_SECRET,
-            grant_type: 'device_code',
+            grant_type: 'urn:ietf:params:oauth:grant-type:device_code',
             device_code: deviceData.device_code
           });
 
@@ -112,7 +116,7 @@ class TadoAuth {
         client_secret: TADO_CLIENT_SECRET,
         grant_type: 'refresh_token',
         refresh_token: this.refreshToken,
-        scope: 'home.user'
+        scope: 'home.user offline_access'
       });
 
       this.accessToken = response.data.access_token;
