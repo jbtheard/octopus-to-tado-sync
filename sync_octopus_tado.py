@@ -8,7 +8,7 @@ from requests.auth import HTTPBasicAuth
 
 TADO_CLIENT_ID = "tado-web-app"
 TADO_CLIENT_SECRET = "wZaRN7rpjn3FoNyF5IFuxg9uMzYJcvOoQ8QWiIqS3hfk6gLhVlG57j5YNoZL2Rtc"
-TADO_AUTH_URL = "https://auth.tado.com/oauth"
+TADO_AUTH_URL = "https://auth.tado.com"
 
 
 class TadoAuth:
@@ -28,7 +28,7 @@ class TadoAuth:
         
         # Step 1: Request device code
         response = requests.post(
-            f"{TADO_AUTH_URL}/device",
+            f"{TADO_AUTH_URL}/oauth/v2/device_authorization",
             data={
                 "client_id": TADO_CLIENT_ID,
                 "scope": "home.user"
@@ -46,11 +46,11 @@ class TadoAuth:
         while True:
             time.sleep(device_data['interval'])
             token_response = requests.post(
-                f"{TADO_AUTH_URL}/token",
+                f"{TADO_AUTH_URL}/oauth/token",
                 data={
                     "client_id": TADO_CLIENT_ID,
                     "client_secret": TADO_CLIENT_SECRET,
-                    "grant_type": "device_code",
+                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
                     "device_code": device_data['device_code']
                 }
             )
@@ -81,7 +81,7 @@ class TadoAuth:
             raise Exception("No refresh token available")
             
         response = requests.post(
-            f"{TADO_AUTH_URL}/token",
+            f"{TADO_AUTH_URL}/oauth/token",
             data={
                 "client_id": TADO_CLIENT_ID,
                 "client_secret": TADO_CLIENT_SECRET,
