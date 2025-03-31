@@ -27,6 +27,7 @@ jobs:
         python sync_octopus_tado.py \
           --tado-email "${{ secrets.TADO_EMAIL }}" \
           --tado-password "${{ secrets.TADO_PASSWORD }}" \
+          --tado-client-secret "${{ secrets.TADO_CLIENT_SECRET }}" \
           --mprn "${{ secrets.OCTOPUS_MPRN }}" \
           --gas-serial-number "${{ secrets.OCTOPUS_GAS_SERIAL }}" \
           --octopus-api-key "${{ secrets.OCTOPUS_API_KEY }}"

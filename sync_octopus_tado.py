@@ -34,13 +34,19 @@ def get_meter_reading_total_consumption(api_key, mprn, gas_serial_number):
     return total_consumption
 
 
-def send_reading_to_tado(username, password, reading):
+def send_reading_to_tado(username, password, client_secret, reading):
     """
     Sends the total consumption reading to Tado using its Energy IQ feature.
     """
-    tado = Tado(username, password)
-    result = tado.set_eiq_meter_readings(reading=int(reading))
-    print(result)
+    print(f"Attempting to authenticate with Tado using username: {username}")
+    try:
+        tado = Tado(username, password, client_secret)
+        result = tado.set_eiq_meter_readings(reading=int(reading))
+        print(f"Tado API response: {result}")
+    except Exception as e:
+        print(f"Error authenticating with Tado: {str(e)}")
+        print(f"Error type: {type(e)}")
+        raise
 
 
 def parse_args():
@@ -54,6 +60,7 @@ def parse_args():
     # Tado API arguments
     parser.add_argument("--tado-email", required=True, help="Tado account email")
     parser.add_argument("--tado-password", required=True, help="Tado account password")
+    parser.add_argument("--tado-client-secret", required=True, help="Tado client secret")
 
     # Octopus API arguments
     parser.add_argument(
@@ -78,4 +85,4 @@ if __name__ == "__main__":
     )
 
     # Send the total consumption to Tado
-    send_reading_to_tado(args.tado_email, args.tado_password, consumption)
+    send_reading_to_tado(args.tado_email, args.tado_password, args.tado_client_secret, consumption)
