@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import time
 import requests
 from datetime import datetime
@@ -13,6 +14,12 @@ class TadoAuth:
     def __init__(self):
         self.access_token = None
         self.refresh_token = None
+
+    def auth_with_refresh_token(self, refresh_token):
+        """Authenticates using a refresh token."""
+        print("Authenticating with refresh token...")
+        self.refresh_token = refresh_token
+        self.refresh_access_token()
 
     def device_auth_flow(self):
         """Initiates the device code flow authentication."""
@@ -56,6 +63,8 @@ class TadoAuth:
                 self.access_token = token_data['access_token']
                 self.refresh_token = token_data['refresh_token']
                 print("Successfully authenticated with Tado!")
+                print("\nIMPORTANT: Save this refresh token for GitHub Actions:")
+                print(f"TADO_REFRESH_TOKEN={self.refresh_token}")
                 return
             elif token_response.status_code == 400:
                 error_data = token_response.json()
@@ -87,11 +96,20 @@ class TadoAuth:
         token_data = response.json()
         self.access_token = token_data['access_token']
         self.refresh_token = token_data['refresh_token']  # Tado uses refresh token rotation
+        
+        # If running in GitHub Actions, update the GITHUB_ENV with the new refresh token
+        if os.getenv('GITHUB_ENV'):
+            with open(os.environ['GITHUB_ENV'], 'a') as f:
+                f.write(f"TADO_REFRESH_TOKEN={self.refresh_token}\n")
 
     def send_reading_to_tado(self, consumption):
         """Sends the total consumption reading to Tado."""
         if not self.access_token:
-            self.device_auth_flow()
+            # If running in GitHub Actions, use refresh token
+            if os.getenv('GITHUB_ACTIONS') and os.getenv('TADO_REFRESH_TOKEN'):
+                self.auth_with_refresh_token(os.getenv('TADO_REFRESH_TOKEN'))
+            else:
+                self.device_auth_flow()
             
         headers = {
             "Authorization": f"Bearer {self.access_token}",
@@ -200,6 +218,12 @@ def parse_args():
         description="Tado and Octopus API Interaction Script"
     )
 
+    # Optional Tado refresh token
+    parser.add_argument(
+        "--tado-refresh-token",
+        help="Tado refresh token for GitHub Actions automation"
+    )
+
     # Octopus API arguments
     parser.add_argument(
         "--mprn",
@@ -224,4 +248,6 @@ if __name__ == "__main__":
 
     # Initialize Tado authentication and send the reading
     tado = TadoAuth()
+    if args.tado_refresh_token:
+        tado.auth_with_refresh_token(args.tado_refresh_token)
     tado.send_reading_to_tado(consumption)
