@@ -55,9 +55,11 @@ def send_reading_to_tado(username, password, client_secret, reading):
     except Exception as e:
         print(f"Error in Tado operation: {str(e)}")
         print(f"Error type: {type(e)}")
-        if hasattr(e, 'response'):
+        if hasattr(e, 'response') and e.response is not None:
             print(f"Response status code: {e.response.status_code}")
             print(f"Response text: {e.response.text}")
+        else:
+            print("No response object available")
         raise
 
 
