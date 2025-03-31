@@ -89,14 +89,13 @@ class TadoAuth:
         self.refresh_token = token_data['refresh_token']  # Tado uses refresh token rotation
 
     def send_reading_to_tado(self, consumption):
-        """Sends the total consumption reading to Tado using its Energy IQ feature."""
+        """Sends the total consumption reading to Tado."""
         if not self.access_token:
             self.device_auth_flow()
             
         headers = {
             "Authorization": f"Bearer {self.access_token}",
-            "Content-Type": "application/json",
-            "Accept": "application/json"
+            "Content-Type": "application/json"
         }
         
         # First, get the user's home ID
@@ -119,20 +118,49 @@ class TadoAuth:
             
         home_id = me_response.json()['homes'][0]['id']
         
-        # Send the meter reading
-        reading_response = requests.post(
-            f"https://energy-insights.tado.com/api/homes/{home_id}/readings",
-            headers=headers,
-            json={"reading": int(consumption)}
+        # Get the zones in the home to find the heating zone
+        zones_response = requests.get(
+            f"https://my.tado.com/api/v2/homes/{home_id}/zones",
+            headers=headers
         )
         
-        if reading_response.status_code != 200:
-            print(f"Failed to send reading. Status code: {reading_response.status_code}")
-            print(f"Response headers: {reading_response.headers}")
-            print(f"Request headers: {headers}")
-            raise Exception(f"Failed to send reading: {reading_response.text}")
+        if zones_response.status_code != 200:
+            raise Exception(f"Failed to get zones: {zones_response.text}")
             
-        return reading_response.json()
+        # Find the heating zone
+        heating_zone = None
+        for zone in zones_response.json():
+            if zone['type'] == 'HEATING':
+                heating_zone = zone
+                break
+                
+        if not heating_zone:
+            raise Exception("No heating zone found in the home")
+            
+        # Send the meter reading as a state update
+        state_response = requests.put(
+            f"https://my.tado.com/api/v2/homes/{home_id}/zones/{heating_zone['id']}/state",
+            headers=headers,
+            json={
+                "setting": {
+                    "type": "HEATING",
+                    "power": "ON",
+                    "temperature": None
+                },
+                "meteringInfo": {
+                    "totalConsumption": consumption,
+                    "unit": "m³"
+                }
+            }
+        )
+        
+        if state_response.status_code != 200:
+            print(f"Failed to send reading. Status code: {state_response.status_code}")
+            print(f"Response headers: {state_response.headers}")
+            print(f"Request headers: {headers}")
+            raise Exception(f"Failed to send reading: {state_response.text}")
+            
+        return state_response.json()
 
 
 def get_meter_reading_total_consumption(api_key, mprn, gas_serial_number):
