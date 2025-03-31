@@ -1,0 +1,24 @@
+{
+  "name": "octopus-to-tado-sync",
+  "version": "1.0.0",
+  "description": "This repository contains a script to automatically sync your Octopus Energy smart meter readings with Tado's Energy IQ feature. The workflow provided allows you to set this up to run on a weekly basis using GitHub Actions, so your Tado Energy IQ remains up-to-date without any manual effort.",
+  "main": "dist/sync-octopus-tado.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/sync-octopus-tado.js",
+    "dev": "ts-node sync-octopus-tado.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.6.7",
+    "commander": "^12.0.0",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.24",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}
