@@ -40,7 +40,8 @@ def send_reading_to_tado(username, password, client_secret, reading):
     """
     print(f"Attempting to authenticate with Tado using username: {username}")
     try:
-        tado = Tado(username, password)
+        session = requests.Session()
+        tado = Tado(username, password, client_secret=client_secret, session=session)
         result = tado.set_eiq_meter_readings(reading=int(reading))
         print(f"Tado API response: {result}")
     except Exception as e:
