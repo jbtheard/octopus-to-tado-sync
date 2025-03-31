@@ -41,11 +41,15 @@ def send_reading_to_tado(username, password, client_secret, reading):
     print(f"Attempting to authenticate with Tado using username: {username}")
     try:
         tado = Tado(username, password)
+        print("Successfully created Tado instance")
         result = tado.set_eiq_meter_readings(reading=int(reading))
         print(f"Tado API response: {result}")
     except Exception as e:
         print(f"Error authenticating with Tado: {str(e)}")
         print(f"Error type: {type(e)}")
+        if hasattr(e, 'response'):
+            print(f"Response status code: {e.response.status_code}")
+            print(f"Response text: {e.response.text}")
         raise
 
 
