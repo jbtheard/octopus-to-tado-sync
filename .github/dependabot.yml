@@ -1,9 +1,22 @@
 version: 2
 updates:
-  - package-ecosystem: "pip"
+  - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
+    versioning-strategy: "increase"
+    groups:
+      dev-dependencies:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "ts-node"
+      production-dependencies:
+        patterns:
+          - "axios"
+          - "commander"
+          - "dotenv"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
