@@ -8,7 +8,8 @@ from requests.auth import HTTPBasicAuth
 
 TADO_CLIENT_ID = "tado-web-app"
 TADO_CLIENT_SECRET = "wZaRN7rpjn3FoNyF5IFuxg9uMzYJcvOoQ8QWiIqS3hfk6gLhVlG57j5YNoZL2Rtc"
-TADO_AUTH_URL = "https://auth.tado.com"
+TADO_AUTH_URL = "https://auth.tado.com/oauth"
+TADO_API_URL = "https://my.tado.com/api/v2"
 
 
 class TadoAuth:
@@ -28,7 +29,7 @@ class TadoAuth:
         
         # Step 1: Request device code
         response = requests.post(
-            f"{TADO_AUTH_URL}/oauth/v2/device_authorization",
+            f"{TADO_AUTH_URL}/device",
             data={
                 "client_id": TADO_CLIENT_ID,
                 "scope": "home.user"
@@ -46,11 +47,11 @@ class TadoAuth:
         while True:
             time.sleep(device_data['interval'])
             token_response = requests.post(
-                f"{TADO_AUTH_URL}/oauth/token",
+                f"{TADO_AUTH_URL}/token",
                 data={
                     "client_id": TADO_CLIENT_ID,
                     "client_secret": TADO_CLIENT_SECRET,
-                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
+                    "grant_type": "device_code",
                     "device_code": device_data['device_code']
                 }
             )
@@ -81,7 +82,7 @@ class TadoAuth:
             raise Exception("No refresh token available")
             
         response = requests.post(
-            f"{TADO_AUTH_URL}/oauth/token",
+            f"{TADO_AUTH_URL}/token",
             data={
                 "client_id": TADO_CLIENT_ID,
                 "client_secret": TADO_CLIENT_SECRET,
@@ -119,7 +120,7 @@ class TadoAuth:
         
         # First, get the user's home ID
         me_response = requests.get(
-            "https://my.tado.com/api/v2/me",
+            f"{TADO_API_URL}/me",
             headers=headers
         )
         
@@ -128,7 +129,7 @@ class TadoAuth:
             self.refresh_access_token()
             headers["Authorization"] = f"Bearer {self.access_token}"
             me_response = requests.get(
-                "https://my.tado.com/api/v2/me",
+                f"{TADO_API_URL}/me",
                 headers=headers
             )
             
@@ -139,7 +140,7 @@ class TadoAuth:
         
         # Get the zones in the home to find the heating zone
         zones_response = requests.get(
-            f"https://my.tado.com/api/v2/homes/{home_id}/zones",
+            f"{TADO_API_URL}/homes/{home_id}/zones",
             headers=headers
         )
         
@@ -158,7 +159,7 @@ class TadoAuth:
             
         # Send the meter reading as a state update
         state_response = requests.put(
-            f"https://my.tado.com/api/v2/homes/{home_id}/zones/{heating_zone['id']}/state",
+            f"{TADO_API_URL}/homes/{home_id}/zones/{heating_zone['id']}/state",
             headers=headers,
             json={
                 "setting": {
