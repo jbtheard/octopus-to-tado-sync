@@ -6,8 +6,9 @@ import requests
 from datetime import datetime
 from requests.auth import HTTPBasicAuth
 
-TADO_CLIENT_ID = "1bb50063-6b0c-4d11-bd99-387f4a91cc46"
-TADO_AUTH_URL = "https://login.tado.com/oauth2"
+TADO_CLIENT_ID = "tado-web-app"
+TADO_CLIENT_SECRET = "wZaRN7rpjn3FoNyF5IFuxg9uMzYJcvOoQ8QWiIqS3hfk6gLhVlG57j5YNoZL2Rtc"
+TADO_AUTH_URL = "https://auth.tado.com/oauth"
 
 
 class TadoAuth:
@@ -27,54 +28,26 @@ class TadoAuth:
         
         # Step 1: Request device code
         response = requests.post(
-            f"{TADO_AUTH_URL}/device_authorize",
-            params={
+            f"{TADO_AUTH_URL}/token",
+            data={
                 "client_id": TADO_CLIENT_ID,
-                "scope": "offline_access",
+                "client_secret": TADO_CLIENT_SECRET,
+                "grant_type": "password",
+                "scope": "home.user",
+                "username": input("Enter your Tado email: "),
+                "password": input("Enter your Tado password: ")
             }
         )
         
         if response.status_code != 200:
-            raise Exception(f"Failed to get device code: {response.text}")
+            raise Exception(f"Failed to authenticate: {response.text}")
         
-        auth_data = response.json()
-        verification_uri = auth_data['verification_uri_complete']
-        device_code = auth_data['device_code']
-        interval = auth_data['interval']
-        
-        print(f"\nPlease visit this URL to authenticate: {verification_uri}")
-        print("Waiting for authentication...")
-        
-        # Step 2: Poll for token
-        while True:
-            time.sleep(interval)
-            
-            token_response = requests.post(
-                f"{TADO_AUTH_URL}/token",
-                params={
-                    "client_id": TADO_CLIENT_ID,
-                    "device_code": device_code,
-                    "grant_type": "urn:ietf:params:oauth:grant-type:device_code",
-                }
-            )
-            
-            if token_response.status_code == 200:
-                token_data = token_response.json()
-                self.access_token = token_data['access_token']
-                self.refresh_token = token_data['refresh_token']
-                print("Successfully authenticated with Tado!")
-                print("\nIMPORTANT: Save this refresh token for GitHub Actions:")
-                print(f"TADO_REFRESH_TOKEN={self.refresh_token}")
-                return
-            elif token_response.status_code == 400:
-                error_data = token_response.json()
-                if error_data.get('error') == 'authorization_pending':
-                    print("Waiting for authorization...")
-                    continue
-                else:
-                    raise Exception(f"Authentication failed: {token_response.text}")
-            else:
-                raise Exception(f"Unexpected response: {token_response.text}")
+        token_data = response.json()
+        self.access_token = token_data['access_token']
+        self.refresh_token = token_data['refresh_token']
+        print("Successfully authenticated with Tado!")
+        print("\nIMPORTANT: Save this refresh token for GitHub Actions:")
+        print(f"TADO_REFRESH_TOKEN={self.refresh_token}")
 
     def refresh_access_token(self):
         """Refreshes the access token using the refresh token."""
@@ -83,10 +56,12 @@ class TadoAuth:
             
         response = requests.post(
             f"{TADO_AUTH_URL}/token",
-            params={
+            data={
                 "client_id": TADO_CLIENT_ID,
+                "client_secret": TADO_CLIENT_SECRET,
                 "grant_type": "refresh_token",
                 "refresh_token": self.refresh_token,
+                "scope": "home.user"
             }
         )
         
