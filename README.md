@@ -1,13 +1,13 @@
 # Octopus to Tado Sync
 
-This repository contains a script to automatically sync your Octopus Energy smart meter readings with Tado's Energy IQ feature. The workflow provided allows you to set this up to run on a weekly basis using GitHub Actions, so your Tado Energy IQ remains up-to-date without any manual effort.
+This repository contains a script to automatically sync your Octopus Energy smart meter readings with Tado. The workflow provided allows you to set this up to run on a daily basis using GitHub Actions.
 
 ## Prerequisites
 
-- Node.js 18 or higher
-- npm
-- An Octopus Energy account with a smart meter
-- A Tado account with a smart thermostat
+- [Bun](https://bun.sh) installed on your system
+- Octopus Energy API key
+- Tado account credentials
+- GitHub account (for automated syncing)
 
 ## Installation
 
@@ -19,71 +19,77 @@ This repository contains a script to automatically sync your Octopus Energy smar
 
 2. Install dependencies:
    ```bash
-   npm install
+   bun install
    ```
 
-3. Create a `.env` file with your credentials:
+3. Create a `.env` file based on the example:
    ```bash
    cp .env.example .env
    ```
-   Then edit the `.env` file with your actual values.
+
+4. Fill in your credentials in the `.env` file:
+   ```env
+   # Octopus Energy API credentials
+   OCTOPUS_API_KEY=your_api_key_here
+   MPRN=your_mprn_here
+   GAS_SERIAL_NUMBER=your_serial_number_here
+
+   # Tado credentials (optional, for automated authentication)
+   TADO_USERNAME=your_tado_email
+   TADO_PASSWORD=your_tado_password
+   ```
 
 ## Usage
 
-### Development
+### Local Development
 
-To run the script in development mode:
-
+Run the script with automatic reloading:
 ```bash
-npm run dev -- --mprn YOUR_MPRN --gas-serial-number YOUR_GAS_SERIAL --octopus-api-key YOUR_OCTOPUS_KEY
+bun dev -- --mprn "$MPRN" --gas-serial-number "$GAS_SERIAL_NUMBER" --octopus-api-key "$OCTOPUS_API_KEY"
 ```
 
 ### Production
 
-1. Build the TypeScript code:
-   ```bash
-   npm run build
-   ```
-
-2. Run the compiled JavaScript:
-   ```bash
-   npm start -- --mprn YOUR_MPRN --gas-serial-number YOUR_GAS_SERIAL --octopus-api-key YOUR_OCTOPUS_KEY
-   ```
-
-### GitHub Actions
-
-To use this script with GitHub Actions:
-
-1. Run the script locally once to get a refresh token
-2. Add the following secrets to your GitHub repository:
-   - `TADO_REFRESH_TOKEN`: The refresh token obtained from running the script
-   - `OCTOPUS_API_KEY`: Your Octopus Energy API key
-   - `MPRN`: Your gas meter MPRN
-   - `GAS_SERIAL_NUMBER`: Your gas meter serial number
-
-The GitHub Actions workflow will automatically run the script weekly and update your Tado Energy IQ with the latest readings.
-
-## Command Line Arguments
-
-- `--mprn`: (Required) MPRN (Meter Point Reference Number) for the gas meter
-- `--gas-serial-number`: (Required) Gas meter serial number
-- `--octopus-api-key`: (Required) Octopus API key
-- `--tado-refresh-token`: (Optional) Tado refresh token for GitHub Actions automation
-
-## Development
-
-### Building
-
+Run the script once:
 ```bash
-npm run build
+bun start -- --mprn "$MPRN" --gas-serial-number "$GAS_SERIAL_NUMBER" --octopus-api-key "$OCTOPUS_API_KEY"
 ```
 
-### Running in Development Mode
+### GitHub Actions Automation
 
-```bash
-npm run dev
-```
+1. First, run the script locally to obtain a refresh token:
+   ```bash
+   bun start -- \
+     --mprn "$MPRN" \
+     --gas-serial-number "$GAS_SERIAL_NUMBER" \
+     --octopus-api-key "$OCTOPUS_API_KEY" \
+     --tado-username "$TADO_USERNAME" \
+     --tado-password "$TADO_PASSWORD"
+   ```
+
+2. The script will automatically:
+   - Launch a headless browser
+   - Log in to your Tado account
+   - Complete the device verification
+   - Save the refresh token to GitHub secrets
+
+3. The GitHub Actions workflow will run daily at midnight and:
+   - Use the stored refresh token to authenticate
+   - Fetch meter readings from Octopus Energy
+   - Send the readings to Tado
+   - Update the refresh token (Tado uses token rotation)
+
+## Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `OCTOPUS_API_KEY` | Your Octopus Energy API key |
+| `MPRN` | Meter Point Reference Number for your gas meter |
+| `GAS_SERIAL_NUMBER` | Serial number of your gas meter |
+| `TADO_USERNAME` | (Optional) Your Tado account email |
+| `TADO_PASSWORD` | (Optional) Your Tado account password |
+| `TADO_REFRESH_TOKEN` | (Optional) Refresh token for Tado API |
 
 ## License
 
-ISC
+MIT

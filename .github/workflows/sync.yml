@@ -1,0 +1,30 @@
+name: Sync Octopus to Tado
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # Run daily at midnight
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install dependencies
+      run: bun install
+
+    - name: Run sync script
+      env:
+        MPRN: ${{ secrets.MPRN }}
+        GAS_SERIAL_NUMBER: ${{ secrets.GAS_SERIAL_NUMBER }}
+        OCTOPUS_API_KEY: ${{ secrets.OCTOPUS_API_KEY }}
+        TADO_USERNAME: ${{ secrets.TADO_USERNAME }}
+        TADO_PASSWORD: ${{ secrets.TADO_PASSWORD }}
+      run: bun run update-latest 
